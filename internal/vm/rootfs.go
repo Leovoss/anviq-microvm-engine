@@ -8,22 +8,20 @@ import (
 	"path/filepath"
 )
 
-// newOverlay creates a per-VM copy-on-write rootfs backed by the shared read-only
-// base image, so a fresh VM's disk is created in milliseconds instead of copying GBs.
+// newOverlay creates a per-VM rootfs cloned from the shared base image.
 //
-// Plan A uses a qcow2-style overlay via qemu-img (works on plain ext4 hosts). Plan B
-// swaps this for devmapper thin snapshots at high density — same signature, so only
-// this function changes.
+// Firecracker only accepts RAW block devices (no qcow2), so the per-VM disk must be
+// a raw ext4 file. `cp --reflink=auto` gives a real copy-on-write clone in
+// milliseconds on filesystems that support it (btrfs, xfs, bcachefs) and falls back
+// to a full copy elsewhere — correct either way, fast where it counts.
+//
+// Plan B swaps this for devmapper thin snapshots at high density; the signature
+// stays the same, so only this function changes.
 func (m *Manager) newOverlay(id string) (string, error) {
 	overlay := filepath.Join(m.cfg.StateDir, id+".ext4")
-	cmd := exec.Command("qemu-img", "create",
-		"-f", "qcow2",
-		"-F", "raw",
-		"-b", m.cfg.BaseRootfs,
-		overlay,
-	)
+	cmd := exec.Command("cp", "--reflink=auto", "--sparse=always", m.cfg.BaseRootfs, overlay)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("create overlay for %s: %w: %s", id, err, out)
+		return "", fmt.Errorf("clone rootfs for %s: %w: %s", id, err, out)
 	}
 	return overlay, nil
 }

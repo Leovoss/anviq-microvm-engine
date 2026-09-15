@@ -9,6 +9,9 @@ build: ## Build the control-plane binary
 guest: ## Build the static guest agent to install into the base rootfs
 	CGO_ENABLED=0 GOOS=linux go build -o $(GUEST) ./cmd/anviq-guest
 
+rootfs: ## Build kernel + base rootfs (with the guest agent) into /opt/anviq (needs root)
+	sudo ./scripts/build-rootfs.sh
+
 tidy: ## Resolve deps (needs network; populates go.sum)
 	go mod tidy
 

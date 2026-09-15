@@ -44,24 +44,17 @@ fi
 mkdir -p "$ASSET_DIR" "$STATE_DIR"
 
 # 5. Kernel + base rootfs.
-#    Firecracker needs an uncompressed kernel (vmlinux) and an ext4 rootfs that has the
-#    anviq guest agent installed as an init service (see internal/guest/README.md).
-#    Populate these once. Left as explicit manual steps because the source of the kernel
-#    and the rootfs contents are deployment decisions, not something to silently download.
-if [ ! -f "$ASSET_DIR/vmlinux" ]; then
+#    Firecracker needs an uncompressed kernel (vmlinux) and a RAW ext4 rootfs with the
+#    anviq guest agent installed as init. scripts/build-rootfs.sh produces both.
+if [ ! -f "$ASSET_DIR/vmlinux" ] || [ ! -f "$ASSET_DIR/base.ext4" ]; then
   cat <<EOF
-[host-setup] MISSING: $ASSET_DIR/vmlinux
-  Provide an uncompressed Firecracker-compatible kernel here.
-  (Build from the Firecracker recommended config, or use a known-good vmlinux you control.)
+[host-setup] Kernel and/or base rootfs not yet built in $ASSET_DIR.
+  Build them:  sudo KERNEL_URL=<your vmlinux url> ./scripts/build-rootfs.sh   (or make rootfs)
+  (Or drop your own $ASSET_DIR/vmlinux and $ASSET_DIR/base.ext4 in place.)
 EOF
-fi
-if [ ! -f "$ASSET_DIR/base.ext4" ]; then
-  cat <<EOF
-[host-setup] MISSING: $ASSET_DIR/base.ext4
-  Provide a read-only base rootfs with /usr/local/bin/anviq-guest installed and started at init.
-  Build the guest agent static:  CGO_ENABLED=0 go build -o anviq-guest ./cmd/anviq-guest
-EOF
+else
+  log "assets present: vmlinux + base.ext4"
 fi
 
 log "host ready: bridge=$BRIDGE uplink=$UPLINK assets=$ASSET_DIR state=$STATE_DIR"
-log "next: make build && sudo ANVIQ_CONTROL_TOKEN=... ./bin/fcctl"
+log "next: make rootfs (if needed) && make build && sudo ANVIQ_CONTROL_TOKEN=... ./bin/fcctl && make smoke"
