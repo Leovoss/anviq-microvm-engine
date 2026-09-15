@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: Anviq microVM control plane
+  version: 0.1.0
+  description: >
+    Provision and drive hardware-isolated Firecracker microVM sandboxes. This contract is stable
+    across Plan A (single host) and Plan B (fleet); only the implementation behind it changes.
+    Shapes intentionally mirror rakazo's SandboxProvider so a thin adapter maps 1:1 (see
+    docs/rakazo-seam.md). One bearer token, host-to-host.
+servers:
+  - url: http://127.0.0.1:8080
+security:
+  - bearerAuth: []
+paths:
+  /v1/sandboxes:
+    post:
+      summary: Provision (create) a microVM. Returns fast, before fallible guest setup.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSandbox" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Sandbox" } } } }
+  /v1/sandboxes/{id}:
+    get:
+      summary: Reconnect to an existing microVM by id (used by provision on restart).
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Sandbox" } } } }
+        "404": { description: Not found — caller should create fresh and mark fresh=true }
+    delete:
+      summary: Destroy the microVM (kill process, drop TAP, delete overlay). Irreversible.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "204": { description: Destroyed } }
+  /v1/sandboxes/{id}/prepare:
+    post:
+      summary: Idempotent guest setup (workspace, tools). Safe to repeat.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "204": { description: Prepared } }
+  /v1/sandboxes/{id}/exec:
+    post:
+      summary: Run a command in the microVM. Streams newline-delimited ProcessEvents.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExecRequest" }
+      responses:
+        "200":
+          description: NDJSON stream of ProcessEvents; final event is exit.
+          content:
+            application/x-ndjson:
+              schema: { $ref: "#/components/schemas/ProcessEvent" }
+  /v1/sandboxes/{id}/snapshot:
+    post:
+      summary: Full Firecracker snapshot (memory + disk).
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "201": { description: Snapshot taken, content: { application/json: { schema: { $ref: "#/components/schemas/SnapshotRef" } } } }
+  /v1/sandboxes/{id}/stop:
+    post:
+      summary: Pause/suspend. State persists; resources released. Reversible via provision.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "204": { description: Stopped } }
+  /v1/sandboxes/{id}/keepalive:
+    post:
+      summary: Reset the idle-release timer.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "204": { description: Kept alive } }
+  /v1/sandboxes/{id}/fs:
+    get:
+      summary: List or read a path inside the guest.
+      parameters:
+        - { $ref: "#/components/parameters/Id" }
+        - { name: path, in: query, required: true, schema: { type: string } }
+        - { name: mode, in: query, schema: { type: string, enum: [list, read], default: list } }
+      responses: { "200": { description: Directory entries or file bytes } }
+    put:
+      summary: Write a file inside the guest.
+      parameters:
+        - { $ref: "#/components/parameters/Id" }
+        - { name: path, in: query, required: true, schema: { type: string } }
+      requestBody: { required: true, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+      responses: { "204": { description: Written } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string } }
+  schemas:
+    CreateSandbox:
+      type: object
+      required: [team_id]
+      properties:
+        team_id: { type: string, description: Tenant boundary. One or more microVMs per team. }
+        vcpus: { type: integer, default: 2 }
+        mem_mib: { type: integer, default: 2048 }
+        from_snapshot: { type: string, description: Resume from this SnapshotRef id instead of cold boot. }
+    Sandbox:
+      type: object
+      description: Shaped to build a rakazo ComputerRef directly (id -> providerRef).
+      required: [id, team_id, state]
+      properties:
+        id: { type: string, example: vm-demo-3f2a }
+        team_id: { type: string }
+        state: { type: string, enum: [booting, running, paused, destroyed] }
+        ip: { type: string, example: 192.168.100.12 }
+        vcpus: { type: integer }
+        mem_mib: { type: integer }
+        fresh: { type: boolean, description: True when created rather than reconnected. }
+        created_at: { type: string, format: date-time }
+    ExecRequest:
+      type: object
+      required: [argv]
+      properties:
+        argv: { type: array, items: { type: string } }
+        cwd: { type: string }
+        env: { type: object, additionalProperties: { type: string } }
+        pty: { type: boolean }
+        timeout_ms: { type: integer }
+    ProcessEvent:
+      oneOf:
+        - { type: object, required: [type, data], properties: { type: { const: stdout }, data: { type: string } } }
+        - { type: object, required: [type, data], properties: { type: { const: stderr }, data: { type: string } } }
+        - { type: object, required: [type, code], properties: { type: { const: exit }, code: { type: integer } } }
+    SnapshotRef:
+      type: object
+      required: [id, created_at]
+      properties:
+        id: { type: string }
+        created_at: { type: string, format: date-time }

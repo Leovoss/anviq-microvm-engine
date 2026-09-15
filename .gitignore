@@ -1,0 +1,19 @@
+# Build output
+/bin/
+
+# Host assets and runtime state (never committed — machine-specific, can be large)
+/opt/
+*.ext4
+*.sock
+vmlinux
+registry.json
+
+# Go
+/vendor/
+go.sum
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
