@@ -21,6 +21,20 @@ type Manager struct {
 	machines map[string]*firecracker.Machine
 	boxes    map[string]*Sandbox
 	ipAlloc  *ipAllocator
+	cidSeq   uint32 // monotonic guest-CID allocator; CIDs 0-2 are reserved
+}
+
+// nextCID hands out a unique guest context id for a VM's vsock device.
+// CIDs 0, 1, and 2 are reserved by the vsock spec, so allocation starts at 3.
+func (m *Manager) nextCID() uint32 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.cidSeq < 3 {
+		m.cidSeq = 3
+	} else {
+		m.cidSeq++
+	}
+	return m.cidSeq
 }
 
 func NewManager(cfg HostConfig) (*Manager, error) {
@@ -77,6 +91,8 @@ func (m *Manager) Create(ctx context.Context, req CreateRequest) (*Sandbox, erro
 		tapDevice:   tap,
 		socketPath:  filepath.Join(m.cfg.StateDir, id+".sock"),
 		overlayPath: overlay,
+		vsockUDS:    filepath.Join(m.cfg.StateDir, id+".vsock"),
+		cid:         m.nextCID(),
 	}
 
 	machine, err := m.boot(ctx, box)
@@ -112,6 +128,14 @@ func (m *Manager) boot(ctx context.Context, box *Sandbox) (*firecracker.Machine,
 			StaticConfiguration: &firecracker.StaticNetworkConfiguration{
 				HostDevName: box.tapDevice,
 			},
+		}},
+		// Host<->guest control channel. Firecracker creates the UDS at Path when the
+		// VM boots; the host dials it (see internal/vm/vsock.go) to reach the guest
+		// agent listening on AF_VSOCK. This is how exec and file ops flow.
+		VsockDevices: []firecracker.VsockDevice{{
+			ID:   "vsock0",
+			CID:  box.cid,
+			Path: box.vsockUDS,
 		}},
 		MachineCfg: models.MachineConfiguration{
 			VcpuCount:  firecracker.Int64(box.VCPUs),
@@ -173,6 +197,7 @@ func (m *Manager) Destroy(ctx context.Context, id string) error {
 	_ = teardownTAP(box.tapDevice)
 	_ = os.Remove(box.overlayPath)
 	_ = os.Remove(box.socketPath)
+	_ = os.Remove(box.vsockUDS)
 	m.ipAlloc.release(box.IP)
 	box.State = StateDestroyed
 	m.saveRegistry()

@@ -26,13 +26,22 @@ File ops reuse the same channel:
 {"op":"write","path":"/root/x"}  -> (bytes follow) -> {"ok":true}
 ```
 
-## Where it plugs in
-`internal/vm/exec.go` is the host side of this protocol. It currently returns a loud
-not-implemented exit; wiring the vsock client there and shipping this agent in the base image is
-the last item to make `make smoke` pass.
+## Status: implemented
+- **Guest side:** `cmd/anviq-guest` — an AF_VSOCK listener (via `golang.org/x/sys/unix`, no
+  third-party vsock lib) that serves exec, list, read, and write. Its exec-and-stream path is
+  covered by offline tests (`cmd/anviq-guest/guest_test.go`) that run without KVM.
+- **Host side:** `internal/vm/vsock.go` dials Firecracker's per-VM UDS with the `CONNECT`
+  handshake; `internal/vm/exec.go` sends the request and forwards the guest's NDJSON stream.
+- **Wiring:** `internal/vm/manager.go` attaches a vsock device (unique CID + per-VM UDS) to every
+  microVM at boot. The wire types live in `internal/proto` (pure stdlib), shared by both sides.
+
+## Remaining to pass `make smoke` (host-dependent, not code)
+1. A KVM-capable Linux host (`/dev/kvm` present).
+2. An uncompressed kernel at `/opt/anviq/vmlinux`.
+3. A base rootfs at `/opt/anviq/base.ext4` with `/usr/local/bin/anviq-guest` installed and
+   started at init.
 
 ## Build note
-The agent is a static Go binary (`CGO_ENABLED=0`) copied into the rootfs at
-`/usr/local/bin/anviq-guest` and started by the rootfs init (see `scripts/host-setup.sh`, which
-builds the base image). Keeping it static means it runs on any minimal rootfs without libc
-matching.
+The agent is a static Go binary (`make guest`, i.e. `CGO_ENABLED=0 GOOS=linux`) copied into the
+rootfs at `/usr/local/bin/anviq-guest` and started by the rootfs init. Static means it runs on
+any minimal rootfs without libc matching.

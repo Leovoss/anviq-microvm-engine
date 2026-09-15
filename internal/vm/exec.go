@@ -1,36 +1,115 @@
 package vm
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"time"
+
+	"github.com/Leovoss/anviq-microvm-engine/internal/proto"
 )
+
+const guestDialTimeout = 10 * time.Second
 
 // Exec runs a command inside the microVM and streams ProcessEvents to emit.
 // The final event is always of type "exit".
 //
-// Transport (Plan A): the guest ships an init-time agent (see internal/guest) that
-// listens on a vsock port. The control plane dials CID=box + a fixed port, sends the
-// ExecRequest as JSON, and reads back NDJSON ProcessEvents. This function is the seam
-// where that vsock client plugs in; it is intentionally isolated so the guest protocol
-// can be developed and tested against a real booted VM without touching the HTTP layer.
-//
-// Until the vsock guest client lands, this returns a clear not-implemented exit so the
-// smoke test fails loudly rather than silently pretending to run commands.
+// Transport: a host-initiated vsock connection to the anviq-guest agent (see
+// internal/guest and cmd/anviq-guest). One connection carries the exec request
+// then the guest's NDJSON event stream, which is forwarded to emit unchanged.
 func (m *Manager) Exec(ctx context.Context, id string, req ExecRequest, emit func(ProcessEvent) error) error {
-	box := m.Get(id)
-	if box == nil {
-		return fmt.Errorf("unknown sandbox %s", id)
+	conn, err := m.dial(ctx, id)
+	if err != nil {
+		return err
 	}
-	if box.State != StateRunning {
-		return fmt.Errorf("sandbox %s is %s, not running", id, box.State)
-	}
+	defer conn.Close()
+
+	// Cancel/timeout tears the connection down so DecodeEvents returns promptly.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+
 	if len(req.Argv) == 0 {
 		return fmt.Errorf("argv is required")
 	}
+	err = proto.WriteRequest(conn, proto.Request{
+		Op:   proto.OpExec,
+		Argv: req.Argv,
+		Cwd:  req.Cwd,
+		Env:  req.Env,
+		PTY:  req.PTY,
+	})
+	if err != nil {
+		return fmt.Errorf("send exec to guest %s: %w", id, err)
+	}
+	return proto.DecodeEvents(conn, emit)
+}
 
-	// TODO(phase1): dial vsock guest agent on box.IP/CID and stream real output.
-	// See docs/roadmap.md Phase 1 checklist item "exec runs uname -a inside the VM".
-	code := 127
-	_ = emit(ProcessEvent{Type: "stderr", Data: "guest exec transport not yet wired (Phase 1 TODO)\n"})
-	return emit(ProcessEvent{Type: "exit", Code: &code})
+// ListFiles returns directory entries inside the guest.
+func (m *Manager) ListFiles(ctx context.Context, id, path string) ([]proto.FileEntry, error) {
+	conn, err := m.dial(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := proto.WriteRequest(conn, proto.Request{Op: proto.OpList, Path: path}); err != nil {
+		return nil, err
+	}
+	var entries []proto.FileEntry
+	err = json.NewDecoder(conn).Decode(&entries)
+	return entries, err
+}
+
+// ReadFile returns the bytes of a file inside the guest.
+func (m *Manager) ReadFile(ctx context.Context, id, path string) ([]byte, error) {
+	conn, err := m.dial(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if err := proto.WriteRequest(conn, proto.Request{Op: proto.OpRead, Path: path}); err != nil {
+		return nil, err
+	}
+	return io.ReadAll(conn)
+}
+
+// WriteFile writes bytes to a file inside the guest.
+func (m *Manager) WriteFile(ctx context.Context, id, path string, content []byte) error {
+	conn, err := m.dial(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if err := proto.WriteRequest(conn, proto.Request{Op: proto.OpWrite, Path: path, Content: content}); err != nil {
+		return err
+	}
+	// Guest acknowledges with a single JSON line: {"ok":true} or {"error":"..."}.
+	line, _ := bufio.NewReader(conn).ReadString('\n')
+	var ack struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error"`
+	}
+	_ = json.Unmarshal([]byte(line), &ack)
+	if !ack.OK {
+		return fmt.Errorf("guest write failed: %s", ack.Error)
+	}
+	return nil
+}
+
+// dial resolves a running box and opens a vsock connection to its guest agent.
+func (m *Manager) dial(ctx context.Context, id string) (io.ReadWriteCloser, error) {
+	box := m.Get(id)
+	if box == nil {
+		return nil, fmt.Errorf("unknown sandbox %s", id)
+	}
+	if box.State != StateRunning {
+		return nil, fmt.Errorf("sandbox %s is %s, not running", id, box.State)
+	}
+	_ = ctx // reserved for a future context-aware dial; cancellation is handled by AfterFunc in Exec
+	conn, err := dialGuest(box.vsockUDS, proto.GuestPort, guestDialTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("connect guest %s: %w", id, err)
+	}
+	return conn, nil
 }

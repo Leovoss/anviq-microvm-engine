@@ -10,7 +10,7 @@ registry.json
 
 # Go
 /vendor/
-go.sum
+# NOTE: go.sum is intentionally committed (dependency integrity).
 
 # Editor / OS
 .DS_Store

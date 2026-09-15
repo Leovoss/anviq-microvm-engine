@@ -4,6 +4,7 @@ package server
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -31,6 +32,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /v1/sandboxes/{id}/prepare", s.prepareSandbox)
 	s.mux.HandleFunc("POST /v1/sandboxes/{id}/exec", s.execSandbox)
 	s.mux.HandleFunc("POST /v1/sandboxes/{id}/stop", s.stopSandbox)
+	s.mux.HandleFunc("GET /v1/sandboxes/{id}/fs", s.fsGet)
+	s.mux.HandleFunc("PUT /v1/sandboxes/{id}/fs", s.fsPut)
 }
 
 // auth enforces the single host-to-host bearer token. The engine never authenticates
@@ -115,6 +118,51 @@ func (s *Server) stopSandbox(w http.ResponseWriter, r *http.Request) {
 func (s *Server) destroySandbox(w http.ResponseWriter, r *http.Request) {
 	if err := s.mgr.Destroy(r.Context(), r.PathValue("id")); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// fsGet serves list (mode=list) or read (mode=read) of a path inside the guest.
+func (s *Server) fsGet(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+	if r.URL.Query().Get("mode") == "read" {
+		data, err := s.mgr.ReadFile(r.Context(), id, path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(data)
+		return
+	}
+	entries, err := s.mgr.ListFiles(r.Context(), id, path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	}
+	writeJSON(w, http.StatusOK, entries)
+}
+
+// fsPut writes the request body to a path inside the guest.
+func (s *Server) fsPut(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.mgr.WriteFile(r.Context(), r.PathValue("id"), path, body); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

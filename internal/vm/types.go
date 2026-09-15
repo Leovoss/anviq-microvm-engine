@@ -2,7 +2,11 @@
 // processes on a single host, one TAP per VM on a shared bridge, CoW ext4 overlays.
 package vm
 
-import "time"
+import (
+	"time"
+
+	"github.com/Leovoss/anviq-microvm-engine/internal/proto"
+)
 
 // State mirrors the openapi Sandbox.state enum.
 type State string
@@ -30,6 +34,8 @@ type Sandbox struct {
 	tapDevice   string
 	socketPath  string
 	overlayPath string
+	vsockUDS    string // per-VM Unix socket Firecracker exposes for host<->guest vsock
+	cid         uint32 // guest context id for the vsock device (unique per VM, >= 3)
 }
 
 // CreateRequest is the decoded body of POST /v1/sandboxes.
@@ -49,12 +55,10 @@ type ExecRequest struct {
 	TimeoutMs int64             `json:"timeout_ms"`
 }
 
-// ProcessEvent is one line of the NDJSON exec stream. Matches rakazo's ProcessEvent.
-type ProcessEvent struct {
-	Type string `json:"type"`           // stdout | stderr | exit
-	Data string `json:"data,omitempty"` // for stdout/stderr
-	Code *int   `json:"code,omitempty"` // for exit
-}
+// ProcessEvent is one line of the NDJSON exec stream. It aliases the canonical
+// definition in internal/proto so there is a single source of truth from the
+// guest agent all the way out to the HTTP client (and rakazo's ProcessEvent).
+type ProcessEvent = proto.ProcessEvent
 
 // SnapshotRef matches rakazo's SnapshotRef.
 type SnapshotRef struct {

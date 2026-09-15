@@ -7,12 +7,18 @@ This is the "validate every layer incrementally" discipline made concrete.
 
 The bar is deliberately small and physical.
 
+- [x] Host↔guest exec/file protocol (`internal/proto`) — pure stdlib, unit-tested offline.
+- [x] vsock guest agent (`cmd/anviq-guest`) — exec/list/read/write; exec-and-stream path tested
+      offline over an in-memory pipe (no KVM).
+- [x] Host-side vsock dialer + exec/file wiring (`internal/vm`), vsock device attached at boot.
+- [x] Control-plane HTTP API implements create/get/prepare/exec/stop/destroy/fs; `go test ./...`
+      passes with no KVM.
 - [ ] `scripts/host-setup.sh` brings a KVM host from bare to ready: verifies `/dev/kvm`, creates
-      `br0` + NAT, fetches a kernel (`vmlinux`) and base rootfs into `/opt/anviq`.
-- [ ] `fcctl` boots one microVM via `POST /v1/sandboxes` and returns a `ComputerRef`-shaped body.
-- [ ] `POST /v1/sandboxes/{id}/exec` runs `uname -a` inside the VM and streams the output back.
+      `br0` + NAT, stages a kernel (`vmlinux`) and base rootfs (with the guest agent) into `/opt/anviq`.
+- [ ] `fcctl` boots one microVM via `POST /v1/sandboxes` on a real KVM host.
+- [ ] `POST /v1/sandboxes/{id}/exec` runs `uname -a` inside the booted VM end to end (`make smoke`).
 - [ ] `stop` pauses + snapshots; a later `provision` on the same `providerRef` resumes it.
-- [ ] `destroy` leaves no orphan TAP, overlay, or firecracker process.
+- [ ] `destroy` leaves no orphan TAP, overlay, vsock socket, or firecracker process.
 - [ ] Reference rakazo adapter (`adapter/firecracker-sandbox.ts`) passes rakazo's
       `sandbox-conformance.test.ts` against a local `fcctl`.
 

@@ -22,8 +22,13 @@ provider. See [`docs/rakazo-seam.md`](docs/rakazo-seam.md).
 processes, static host bridge + per-VM TAP, copy-on-write ext4 rootfs. Target: 1–10 teams.
 This is the layer to prove the metal before adding orchestration.
 
+The control plane, the vsock guest agent, and the full host↔guest exec/file protocol are
+**built and unit-tested offline** (`go test ./...` passes with no KVM). What remains to boot a
+real microVM is host-dependent, not code: a KVM-capable Linux box, an uncompressed kernel, and a
+base rootfs with the guest agent installed. See [`internal/guest/README.md`](internal/guest/README.md).
+
 Phase 2 (Plan B: `jailer`, cgroups v2, CNI, devmapper snapshots, multi-host fleet) and Phase 3
-(Rostock-class sovereign enterprise deployment) are designed but not built. See
+(codename ROSTOCK: hardened / sovereign deployment) are designed but not built. See
 [`docs/roadmap.md`](docs/roadmap.md) and [`docs/architecture.md`](docs/architecture.md).
 
 ## What is here
