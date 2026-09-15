@@ -38,28 +38,30 @@ Only starts once Phase 1's exit criterion holds under sustained use (e.g. 10 VMs
 **Exit criterion:** the same API and adapter from Phase 1 serve 500+ concurrent isolated VMs
 across multiple hosts, with per-tenant resource caps enforced — no client-visible change.
 
-## Phase 3 — Rostock-class sovereign enterprise  ·  ~2,000 users
+## Phase 3 — Codename ROSTOCK: the hardened / sovereign tier
 
-The compliance layer that wins German public-sector deals. This is packaging and proof, on top
-of a Phase 2 engine.
+"Rostock" is the internal codename for the hardened deployment profile — the set of controls
+that lets the engine run for a client (or for yourself) with strict isolation, data-sovereignty,
+and audit requirements. It is not a specific customer; it is the generic "locked-down" build on
+top of a proven Phase 2 engine. Any deployment that needs air-gapping and audit turns this
+profile on.
 
-- [ ] **Air-gapped deploy:** Helm chart / K8s manifests that install with no outbound pulls;
-      all images mirrored into the university registry.
-- [ ] **Identity:** SSO via Shibboleth / DFN-AAI / LDAP; role-based access enforced by the
-      client (rakazo Spaces), microVM boundary enforced by the engine.
-- [ ] **Encryption:** BYOK — university holds exclusive keys; rootfs and snapshots encrypted at
-      rest with keys the operator controls.
-- [ ] **Local models:** LLM + embedding weights served on-prem; verify zero outbound API calls
-      in the whole data path (this repo already guarantees the engine half).
+- [ ] **Air-gapped deploy:** Helm chart / K8s manifests (or a plain systemd bundle) that install
+      with no outbound pulls; all images mirrored into the operator's own registry.
+- [ ] **Identity:** SSO via OIDC / SAML / LDAP; role-based access enforced by the client
+      (e.g. rakazo Spaces), the microVM boundary enforced by the engine.
+- [ ] **Encryption:** BYOK — the operator holds exclusive keys; rootfs and snapshots encrypted at
+      rest with keys they control.
+- [ ] **Local models:** LLM + embedding weights served on-prem; verify zero outbound API calls in
+      the whole data path (this repo already guarantees the engine half).
 - [ ] **Auditability:** structured, immutable audit log of every sandbox lifecycle event; local
-      backup; documentation mapped to BSI C5 / DSGVO / DSG M-V controls.
+      backup; controls documented against a recognised framework (SOC 2 / ISO 27001 / BSI C5,
+      whichever the client requires).
 
-**Exit criterion:** a data-protection officer and ITMZ can run the full stack air-gapped on
-university hardware, verify no data crosses the EU boundary, and audit every action — from a
-single documented Helm install.
+**Exit criterion:** an operator can run the full stack air-gapped on their own hardware, verify
+no data leaves their boundary, and audit every action — from a single documented install.
 
-### Open questions to confirm with the Rostock contact before Phase 3 design
-1. On-prem bare-metal/VM, or an accepted German sovereign cloud (SCS / certified DC)?
-2. Data classification of the 2,000 users' workloads: public research, internal admin, or
-   student PII? (PII triggers the higher compliance tier and changes the audit requirements.)
-3. Which identity federation does ITMZ mandate — Shibboleth, DFN-AAI, plain LDAP?
+### Questions that shape a ROSTOCK deployment (per client, when one appears)
+1. On-prem bare-metal/VM, or a sovereign/certified cloud?
+2. Data sensitivity of the workloads? (Higher sensitivity → stricter audit + key custody.)
+3. Which identity system must it federate with — OIDC, SAML, or plain LDAP?
