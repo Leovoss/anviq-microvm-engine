@@ -5,11 +5,11 @@ A tiny init-time process baked into the base rootfs. The control plane talks to 
 an IP and regardless of the guest's firewall.
 
 ## Why vsock
-- Host↔guest only — nothing on the network can reach it.
+- Host↔guest only: nothing on the network can reach it.
 - Available immediately at boot, before DHCP/networking.
 - The same channel Firecracker recommends for host↔guest control.
 
-## Protocol (Phase 1)
+## Protocol
 The host dials the guest's vsock port and sends one JSON request; the guest replies with a
 stream of newline-delimited `ProcessEvent`s, mirroring `api/openapi.yaml` exactly:
 
@@ -27,7 +27,7 @@ File ops reuse the same channel:
 ```
 
 ## Status: implemented
-- **Guest side:** `cmd/anviq-guest` — an AF_VSOCK listener (via `golang.org/x/sys/unix`, no
+- **Guest side:** `cmd/anviq-guest`, an AF_VSOCK listener (via `golang.org/x/sys/unix`, no
   third-party vsock lib) that serves exec, list, read, and write. Its exec-and-stream path is
   covered by offline tests (`cmd/anviq-guest/guest_test.go`) that run without KVM.
 - **Host side:** `internal/vm/vsock.go` dials Firecracker's per-VM UDS with the `CONNECT`

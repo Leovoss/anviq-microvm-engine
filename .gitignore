@@ -1,7 +1,7 @@
 # Build output
 /bin/
 
-# Host assets and runtime state (never committed — machine-specific, can be large)
+# Host assets and runtime state (never committed, machine-specific, can be large)
 /opt/
 *.ext4
 *.sock

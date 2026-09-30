@@ -1,4 +1,4 @@
-// Package vm owns the Firecracker microVM lifecycle for Plan A: raw firecracker
+// Package vm owns the Firecracker microVM lifecycle on a single host: raw firecracker
 // processes on a single host, one TAP per VM on a shared bridge, CoW ext4 overlays.
 package vm
 

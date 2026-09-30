@@ -1,4 +1,4 @@
-// Command fcctl is the Anviq microVM control plane (Plan A: single host).
+// Command fcctl is the Anviq microVM control plane (single host).
 package main
 
 import (

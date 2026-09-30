@@ -6,8 +6,8 @@ import (
 )
 
 // setupTAP creates a TAP device for one microVM and attaches it to the host bridge.
-// Plan A networking: one bridge (created once by host-setup.sh), one TAP per VM, host NAT.
-// Plan B replaces this with a CNI plugin (tc-redirect-tap) and an overlay; the manager
+// Single-host networking: one bridge (created once by host-setup.sh), one TAP per VM, host NAT.
+// Multi-host would replace this with a CNI plugin (tc-redirect-tap) and an overlay; the manager
 // calls the same two functions, so only this file changes.
 func setupTAP(bridge, tap string) error {
 	steps := [][]string{

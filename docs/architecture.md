@@ -1,10 +1,10 @@
 # Architecture
 
-Two deployment shapes share one control-plane API. Plan A is what we build now; Plan B is the
-scale-out path. The API contract (`api/openapi.yaml`) does not change between them — only what
+Two deployment shapes share one control-plane API: a single host (built) and a multi-host
+fleet (designed). The API contract (`api/openapi.yaml`) does not change between them; only what
 runs behind it does. That is the whole point of putting the seam in the HTTP layer.
 
-## Plan A — 1 to 10 teams (current)
+## Single host (built)
 
 Goal: minimum operational overhead. One bare-metal host, no orchestrator, native Linux
 primitives only.
@@ -27,7 +27,7 @@ primitives only.
       (CoW overlay on a shared read-only base image)
 ```
 
-- **Host:** 1 bare-metal server, KVM enabled. 16–32 vCPU / 64 GB RAM comfortably runs ~10 teams
+- **Host:** 1 bare-metal server, KVM enabled. 16-32 vCPU / 64 GB RAM comfortably runs ~10 teams
   at 2 vCPU / 2 GB each with headroom.
 - **Control plane:** `fcctl`, a single Go binary using `firecracker-go-sdk`. State (which VM
   belongs to which team, its TAP, its overlay path) lives in a JSON registry under
@@ -37,14 +37,14 @@ primitives only.
 - **Storage:** one read-only base rootfs (`base.ext4`) plus a per-VM copy-on-write overlay, so a
   new VM's disk is created instantly without copying gigabytes.
 - **Isolation:** the microVM boundary itself (separate kernel, KVM). No `jailer`, no cgroups
-  quotas yet — acceptable at <10 tenants on a trusted single host.
+  quotas yet; acceptable at <10 tenants on a trusted single host.
 
 ### Why this first
 Booting one microVM and running a command inside it exercises the entire hard path: KVM, kernel,
-rootfs, TAP networking, and the guest exec protocol. Everything in Plan B is an orchestration
+rootfs, TAP networking, and the guest exec protocol. Everything in the multi-host design is an orchestration
 layer on top of a boot path that already works. Prove the metal, then scale.
 
-## Plan B — 100 to 2,000+ teams (designed, not built)
+## Multi-host fleet (designed, not built)
 
 Same API, different substrate. The client cannot tell which one it is talking to.
 
@@ -60,16 +60,16 @@ Same API, different substrate. The client cannot tell which one it is talking to
                   └─ devmapper thin snapshots for instant rootfs
 ```
 
-Deltas from Plan A, each additive:
+Changes from the single-host setup, each additive:
 
-| Concern | Plan A | Plan B |
+| Concern | Single host | Multi-host |
 |---|---|---|
 | Execution | raw `firecracker` | `jailer` wrapping `firecracker` (chroot, uid/gid, netns) |
 | Isolation | microVM boundary | + cgroups v2 CPU/mem/IO caps (no noisy neighbours) |
 | Networking | static bridge + TAP | CNI `tc-redirect-tap` + VXLAN/WireGuard cross-host overlay |
 | Rootfs | CoW ext4 overlay | devmapper thin provisioning / ephemeral snapshots |
 | Placement | single host | scheduler across a bare-metal fleet |
-| Deploy | systemd unit | Helm chart / Nomad job (Phase 3 needs Helm for air-gap) |
+| Deploy | systemd unit | Helm chart / Nomad job |
 
 ## Guest agent
 
@@ -79,7 +79,7 @@ ships with it as an init service, so a freshly booted VM is immediately ready fo
 is the same pattern E2B/Daytona use; it keeps the host-side control plane from needing SSH into
 guests.
 
-## What stays constant across A and B
+## What stays the same in both
 - The HTTP contract in `api/openapi.yaml`.
 - The `SandboxProvider` mapping in `rakazo-seam.md`.
 - The guest agent protocol.

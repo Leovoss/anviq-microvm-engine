@@ -16,7 +16,7 @@ import (
 //	3. read "OK <host_port>\n",
 //	4. stream raw bytes to/from the guest's AF_VSOCK listener on that port.
 //
-// This is pure stdlib on the host side — only the guest agent needs AF_VSOCK.
+// This is pure stdlib on the host side; only the guest agent needs AF_VSOCK.
 func dialGuest(udsPath string, port uint32, timeout time.Duration) (net.Conn, error) {
 	conn, err := net.DialTimeout("unix", udsPath, timeout)
 	if err != nil {

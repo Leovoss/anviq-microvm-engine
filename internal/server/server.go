@@ -37,7 +37,7 @@ func (s *Server) routes() {
 }
 
 // auth enforces the single host-to-host bearer token. The engine never authenticates
-// end users — that is the client's job (rakazo Spaces). Tenants are isolated by the
+// end users; that is the client's job (rakazo Spaces). Tenants are isolated by the
 // microVM boundary, not by request identity.
 func (s *Server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

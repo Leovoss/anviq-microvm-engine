@@ -28,7 +28,7 @@ func TestRequestRoundTrip(t *testing.T) {
 }
 
 // The event stream the guest emits must decode back to the same events the host
-// forwards to the HTTP client — this is the whole exec contract in miniature.
+// forwards to the HTTP client; this is the whole exec contract in miniature.
 func TestEventStreamRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
 	s := NewEventStream(&buf)

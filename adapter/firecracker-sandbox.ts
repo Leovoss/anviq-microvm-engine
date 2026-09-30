@@ -1,6 +1,6 @@
 // Reference rakazo SandboxProvider for the Anviq microVM control plane.
 //
-// This file lives in the engine repo, NOT in rakazo — rakazo stays untouched until you
+// This file lives in the engine repo, NOT in rakazo; rakazo stays untouched until you
 // decide to wire it in. When you do, it drops into `packages/adapters/src/` with three
 // small companion edits (see docs/rakazo-seam.md):
 //   1. add "firecracker" to SandboxKind in packages/contracts/src/ids.ts
@@ -46,7 +46,7 @@ export class FirecrackerSandboxProvider implements SandboxProvider {
       contractVersion: "1",
       adapterVersion: "0.1.0",
       capabilities: {
-        graphical: false, // Phase 1: no desktop yet — degrade safely rather than fake it.
+        graphical: false, // No graphical desktop yet.
         pty: true,
         snapshots: true,
         takeover: false,
