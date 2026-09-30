@@ -13,9 +13,9 @@ import (
 // Firecracker only accepts RAW block devices (no qcow2), so the per-VM disk must be
 // a raw ext4 file. `cp --reflink=auto` gives a real copy-on-write clone in
 // milliseconds on filesystems that support it (btrfs, xfs, bcachefs) and falls back
-// to a full copy elsewhere — correct either way, fast where it counts.
+// to a full copy elsewhere; correct either way, fast where it counts.
 //
-// Plan B swaps this for devmapper thin snapshots at high density; the signature
+// Multi-host would swap this for devmapper thin snapshots at high density; the signature
 // stays the same, so only this function changes.
 func (m *Manager) newOverlay(id string) (string, error) {
 	overlay := filepath.Join(m.cfg.StateDir, id+".ext4")

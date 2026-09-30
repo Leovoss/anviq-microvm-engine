@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Phase 1 exit criterion, executable. Boots a microVM through the running control plane,
-# runs a command inside it, and destroys it — cleanly, so nothing leaks on the host.
+# End-to-end check. Boots a microVM through the running control plane,
+# runs a command inside it, and destroys it cleanly, so nothing leaks on the host.
 #
 # Assumes fcctl is already running and reachable, and ANVIQ_CONTROL_TOKEN is exported.
 set -euo pipefail
@@ -23,4 +23,4 @@ curl -fsS "${auth[@]}" -X POST "$BASE/v1/sandboxes/$id/exec" -d '{"argv":["uname
 say "destroying $id"
 curl -fsS "${auth[@]}" -X DELETE "$BASE/v1/sandboxes/$id"
 
-say "done — verify no leftover: ip link | grep tap- ; ls \$STATE_DIR"
+say "done, verify no leftover: ip link | grep tap- ; ls \$STATE_DIR"

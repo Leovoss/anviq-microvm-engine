@@ -2,7 +2,7 @@
 // anviq-guest agent running inside each microVM.
 //
 // It is deliberately pure stdlib: no vsock, no firecracker dependency. That means
-// this package — and its tests — build and run anywhere, including CI without KVM.
+// this package, and its tests, build and run anywhere, including CI without KVM.
 // One connection carries one Request (a single JSON line, host -> guest) followed
 // by a stream of newline-delimited responses (guest -> host).
 package proto

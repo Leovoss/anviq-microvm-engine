@@ -21,7 +21,7 @@ test: ## Run offline unit tests (no KVM required)
 run: build ## Run locally (needs root, KVM, and host-setup.sh already applied)
 	sudo ANVIQ_CONTROL_TOKEN=$${ANVIQ_CONTROL_TOKEN:?set a token} $(BIN)
 
-smoke: ## Phase 1 exit criterion: boot a microVM, run a command, tear it down
+smoke: ## Boot a microVM, run a command, tear it down
 	./scripts/smoke.sh
 
 clean:

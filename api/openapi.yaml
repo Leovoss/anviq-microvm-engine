@@ -3,8 +3,8 @@ info:
   title: Anviq microVM control plane
   version: 0.1.0
   description: >
-    Provision and drive hardware-isolated Firecracker microVM sandboxes. This contract is stable
-    across Plan A (single host) and Plan B (fleet); only the implementation behind it changes.
+    Provision and drive hardware-isolated Firecracker microVM sandboxes. The contract stays the
+    same for single-host and multi-host deployments.
     Shapes intentionally mirror rakazo's SandboxProvider so a thin adapter maps 1:1 (see
     docs/rakazo-seam.md). One bearer token, host-to-host.
 servers:
@@ -28,7 +28,7 @@ paths:
       parameters: [{ $ref: "#/components/parameters/Id" }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Sandbox" } } } }
-        "404": { description: Not found — caller should create fresh and mark fresh=true }
+        "404": { description: Not found; caller should create fresh and mark fresh=true }
     delete:
       summary: Destroy the microVM (kill process, drop TAP, delete overlay). Irreversible.
       parameters: [{ $ref: "#/components/parameters/Id" }]

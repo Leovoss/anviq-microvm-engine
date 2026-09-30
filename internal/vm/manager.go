@@ -13,7 +13,7 @@ import (
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
 )
 
-// Manager owns all microVMs on this host. Plan A: in-process map + a JSON registry
+// Manager owns all microVMs on this host: in-process map + a JSON registry
 // on disk so an fcctl restart reconnects existing VMs instead of orphaning them.
 type Manager struct {
 	cfg      HostConfig
@@ -111,8 +111,8 @@ func (m *Manager) Create(ctx context.Context, req CreateRequest) (*Sandbox, erro
 	return box, nil
 }
 
-// boot builds the Firecracker config for one microVM and starts it. This is the
-// heart of Plan A — the boot path everything else layers on top of.
+// boot builds the Firecracker config for one microVM and starts it. Everything
+// else builds on this boot path.
 func (m *Manager) boot(ctx context.Context, box *Sandbox) (*firecracker.Machine, error) {
 	cfg := firecracker.Config{
 		SocketPath:      box.socketPath,
@@ -221,7 +221,7 @@ func (m *Manager) saveRegistry() {
 }
 
 // loadRegistry rehydrates box metadata after an fcctl restart. Reattaching to the
-// live firecracker process by socket is a Phase 1 TODO; today we surface prior boxes
+// live firecracker process by socket is still TODO; today we surface prior boxes
 // as paused so the client can decide to resume or destroy.
 func (m *Manager) loadRegistry() {
 	data, err := os.ReadFile(m.registryPath())

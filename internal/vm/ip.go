@@ -7,7 +7,7 @@ import (
 )
 
 // ipAllocator hands out static IPs from the bridge subnet, skipping the gateway.
-// Plan A only; Plan B delegates addressing to the CNI plugin.
+// Single-host only; a multi-host setup would delegate addressing to CNI.
 type ipAllocator struct {
 	mu      sync.Mutex
 	network *net.IPNet

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time host prep for Plan A. Brings a KVM-capable Linux box from bare to ready:
+# One-time host prep for a single-host setup. Brings a KVM-capable Linux box from bare to ready:
 # verifies virtualization, creates the bridge + NAT, and stages the kernel + base rootfs.
 #
 # Idempotent: safe to re-run. Requires root.
@@ -16,7 +16,7 @@ die() { printf '\033[1;31m[host-setup] %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "must run as root"
 
-# 1. Virtualization must be available — this is the whole premise.
+# 1. Virtualization must be available.
 [ -e /dev/kvm ] || die "/dev/kvm not present: enable virtualization (nested virt if this is a cloud VM)"
 log "KVM present"
 

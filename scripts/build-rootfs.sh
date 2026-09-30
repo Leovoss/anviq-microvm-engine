@@ -7,7 +7,7 @@
 # It is intentionally dependency-light: root, mkfs.ext4, curl (or wget), tar.
 #
 # Everything is overridable by env var so you can pin your own kernel/rootfs
-# sources — no hidden downloads baked into the control plane.
+# sources, no hidden downloads baked into the control plane.
 set -euo pipefail
 
 ASSET_DIR="${ASSET_DIR:-/opt/anviq}"
@@ -22,7 +22,7 @@ ROOTFS_URL="${ROOTFS_URL:-https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_VER}/r
 
 # Kernel: a Firecracker-compatible uncompressed vmlinux with virtio-vsock enabled.
 # There is no single stable public URL for this across versions, so KERNEL_URL has
-# no default — set it to a vmlinux you trust, or drop one at $ASSET_DIR/vmlinux
+# no default; set it to a vmlinux you trust, or drop one at $ASSET_DIR/vmlinux
 # yourself and this script will keep it.
 KERNEL_URL="${KERNEL_URL:-}"
 
@@ -53,7 +53,7 @@ else
   Provide an uncompressed, Firecracker-compatible vmlinux with virtio-vsock enabled:
     - set KERNEL_URL=... and re-run, or
     - drop your vmlinux at $ASSET_DIR/vmlinux and re-run.
-  (The Firecracker guest kernel config enables CONFIG_VIRTIO_VSOCKETS — the agent
+  (The Firecracker guest kernel config enables CONFIG_VIRTIO_VSOCKETS; the agent
    needs AF_VSOCK in the guest.)
 EOF
   die "kernel required"
